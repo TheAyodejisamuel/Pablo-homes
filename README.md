@@ -1,127 +1,83 @@
-# Pablo Homes — Real Estate Website
+# Pablo Homes website (front end)
 
-Premium, mobile-first property website for **Pablo Homes, Benin City** — built to the Pablo Homes SRS.
+A static, responsive, multi-page real estate website built to the Pablo Homes SRS. It has no backend yet: forms validate in the browser and hand each enquiry to WhatsApp (with an email fallback), so enquiries still reach Pablo Homes today.
 
-- **Front end:** fast static pages generated from simple JSON data files (no framework, no heavy scripts)
-- **Back end:** serverless API on Netlify Functions for inspection bookings, property-details requests and contact messages, with validation, spam protection and storage
-- **Admin seed:** a protected `/admin/` page to view and export every enquiry (ready to grow into the full dashboard in SRS §19)
+## Viewing it
 
----
+Open `site/index.html` in any browser. You need an internet connection because the photos load from Unsplash's CDN.
 
-## 1. What's included
+To host it, upload the contents of `site/` to any static host (Netlify, Vercel, cPanel, GitHub Pages). No server code is needed.
 
-| Area | Where |
+## Folder structure
+
+```
+build/
+  data.js     All content: listings, insights, FAQ, contact details, image IDs
+  build.js    Generates every page into site/ (no dependencies, Node 16+)
+site/         The finished website, ready to upload
+  index.html, about.html, properties.html, services.html, investment.html,
+  insights.html, faq.html, contact.html, book-inspection.html, 404.html
+  properties/<seo-friendly-slug>.html   one page per listing
+  insights/<slug>.html                  one page per article
+  assets/css/style.css
+  assets/js/api.js        form submission and analytics (the only file the backend dev must touch)
+  assets/js/main.js       menu, dialogs, forms, gallery, map, sharing
+  assets/js/listings.js   search, filters, sorting and shareable URLs
+  assets/js/data.js       generated listing data for the search page
+  sitemap.xml, robots.txt
+```
+
+## Editing content
+
+Edit `build/data.js`, then run:
+
+```
+node build/build.js
+SITE_URL=https://www.your-domain.com node build/build.js   # once the domain is known
+```
+
+Setting `SITE_URL` adds canonical tags and Open Graph URLs, and writes real URLs into the sitemap. Without it, the sitemap uses `example.com` as a placeholder.
+
+## What's included (SRS cross-reference)
+
+| SRS item | Where |
 |---|---|
-| Home (hero search, featured, browse by type, services, why us, recently added, investment, insights) | `/` |
-| Properties with combined filters, sorting and shareable URLs | `/properties/?purpose=buy&type=duplex&beds=4…` |
-| One page per property with SEO-friendly URL, gallery, details, amenities, payment plan, video, map, inspection form, WhatsApp/Call/Request Details, sharing, similar properties | `/properties/<title>-<area>-<ref>/` |
-| Book an Inspection (auto-fills from `?property=PH-1001`) | `/book-inspection/` |
-| About · Services · Investment · Insights (+ 6 articles) · FAQ · Contact · Privacy · 404 | |
-| Enquiry API | `POST /api/enquiry` |
-| Admin enquiries viewer + CSV export | `/admin/` → `GET /api/leads` |
-| SEO: unique titles, meta descriptions, canonical URLs, Open Graph, JSON-LD (RealEstateAgent, RealEstateListing, Article, FAQPage, Breadcrumbs), `sitemap.xml`, `robots.txt` | generated on build |
-| Floating WhatsApp button, sticky mobile Call/WhatsApp/Inspect bar, click-to-call | every page |
-| Analytics events: page/property views, searches, WhatsApp clicks, call clicks, inspection requests, form submissions, shares | `window.dataLayer` + GA4 |
-| Security headers (CSP, HSTS, frame protection), input validation, honeypot + timing spam traps, rate limiting | `netlify.toml`, `netlify/functions/` |
+| §8 Home: hero, search (Buy/Rent, location, type, min/max price, bedrooms), featured, browse by type, services, why us, investment preview | `index.html` |
+| §9 Properties: combined filters, status filter, sorting, shareable filtered URLs (FR-03) | `properties.html` |
+| §10 Property details: ref, status, type, price, payment plan, location, map, rooms, sizes, description, gallery, video, amenities, all four CTAs | `properties/*.html` |
+| §11 WhatsApp message prefilled with property name and reference | every property page |
+| §12 Inspection booking: all fields, property auto-filled, "request until confirmed" wording | property page dialog and `book-inspection.html?property=PH-1001` |
+| §13–17 Services, Investment, Insights, FAQ, Contact | their pages |
+| FR-02 conditional fields (no bedrooms on land, etc.) | `build/data.js` and templates |
+| FR-04 statuses: Available, For Sale, For Rent, Off-plan, Sold, Rented | listings and filters |
+| FR-05 enquiry capture: name, contacts, property, source, message, date/time | `assets/js/api.js` payload |
+| §22 floating WhatsApp, click-to-call, sticky mobile bar, map, video support, social sharing, similar and recently added properties, SEO URLs, honeypot spam protection, analytics events | throughout |
+| §32 SEO: unique titles, meta descriptions, semantic HTML, JSON-LD (RealEstateListing, RealEstateAgent, FAQPage, Article, Breadcrumbs), alt text, sitemap, robots, Open Graph | throughout |
+| §35 Accessibility: labels, focus states, keyboard support, skip link, reduced motion, contrast | throughout |
 
-## 2. Project structure
+## Connecting the backend later
 
-```
-src/data/site.json         Business details (phone, email, WhatsApp, domain, GA id, demo mode)
-src/data/properties.json   Property listings  ← edit this to add/change listings
-src/data/posts.json        Insights articles
-src/data/faqs.json         FAQ questions & answers
-src/assets/                CSS and JavaScript
-src/static/                Files copied as-is (favicon, share image, real property photos)
-scripts/build.mjs          Generates the whole site into /dist
-netlify/functions/         Back-end API (enquiry.mjs, leads.mjs)
-tests/                     API tests (npm test)
-```
+1. Build an endpoint that accepts the JSON described at the top of `site/assets/js/api.js`.
+2. Set `enquiryEndpoint` in `build/data.js` and rebuild. Forms will then POST there and show "Request sent" instead of the WhatsApp step.
+3. For the admin dashboard, the arrays in `build/data.js` map directly to `properties`, `articles` and `faqs` tables. Replace `assets/js/data.js` with an API call, and render property pages server-side or rebuild on publish.
+4. Server-side: validate and sanitise all input, add rate limiting or a CAPTCHA, and serve over HTTPS.
 
-## 3. Run it on your computer
+## Analytics
 
-Needs Node.js 20+.
+`api.js` pushes events to `window.dataLayer`, which Google Tag Manager or GA4 can pick up as soon as their tag is added: `whatsapp_click`, `call_click`, `email_click`, `property_search`, `inspection_open`, `details_open`, `enquiry_submit`, `share_click`. Property page views come from the standard page-view tag.
 
-```bash
-npm install
-npm run dev        # builds and serves at http://localhost:8888
-npm test           # runs the API tests
-```
+## Before launch: content Pablo Homes must supply or confirm
 
-Locally, enquiries are saved in `.data/`. The admin page key is `local-admin-key`.
+- **All 12 listings are SAMPLE content** with stock photos and are labelled "Sample listing". Replace them with real listings and genuine photos and videos before launch (SRS §27).
+- Confirm that 0807 687 3445 is the official WhatsApp number.
+- Company description, story, mission and vision (the About page uses careful general copy for now)
+- Office address and opening hours (then add a map to the Contact page)
+- Domain name (set `SITE_URL`), social media links, approved logo (a temporary "PABLO HOMES" wordmark is used), final brand colours
+- Privacy policy and legal disclaimers
+- **FAQ answers that describe company policy** (marked `confirm: true` in `build/data.js`): documents before payment, negotiation, rental costs, shortlet minimum stay, land instalments, inspection fees, buying from abroad, representatives at inspections
+- Sample payment plans on PH-1004 and PH-1006
+- The six Insights articles are general guidance. Have them reviewed before publishing.
 
-## 4. Publish (GitHub → Netlify)
+## Images
 
-1. Create a new GitHub repository and upload this folder (everything except `node_modules`, `dist`, `.data`).
-2. In Netlify: **Add new project → Import from Git → choose the repo**. Netlify reads `netlify.toml` automatically (build `npm run build`, publish `dist`).
-3. In **Project configuration → Environment variables**, add:
-
-| Variable | Required | Purpose |
-|---|---|---|
-| `ADMIN_TOKEN` | Yes | Password for `/admin/` (12+ characters, keep it private) |
-| `RESEND_API_KEY` | Recommended | Sends an email for every new enquiry ([resend.com](https://resend.com), free tier) |
-| `NOTIFY_EMAIL` | With Resend | Where enquiry emails go, e.g. `websitedesignmasterclass@gmail.com` (comma-separate several) |
-| `FROM_EMAIL` | Optional | Sender, e.g. `Pablo Homes <enquiries@yourdomain.com>` (needs a verified domain in Resend) |
-| `NOTIFY_WEBHOOK_URL` | Optional | Also POST each enquiry to Zapier / Make / Google Sheets / Slack |
-
-4. Update `siteUrl` in `src/data/site.json` to the live domain, then redeploy.
-
-Every enquiry is always stored (Netlify Blobs) and visible at `/admin/`. Email/webhook notifications are extra. If storage and notifications both fail, the visitor is shown a one-tap WhatsApp fallback with their request pre-written — no lead is silently lost.
-
-## 5. Adding or editing a property
-
-Open `src/data/properties.json` and copy an existing entry:
-
-```json
-{
-  "id": "PH-1013",                      // unique reference, shown to customers
-  "title": "4-Bedroom Detached Duplex",
-  "category": "duplex",                 // land | apartment | duplex | terrace | commercial | shortlet | offplan
-  "purpose": "sale",                    // sale | rent | shortlet
-  "status": "for-sale",                 // available | for-sale | for-rent | off-plan | sold | rented
-  "location": { "area": "GRA", "city": "Benin City", "state": "Edo State" },
-  "price": 150000000,
-  "priceUnit": "",                      // "" for sale, "year" for rent, "night" for shortlets
-  "pricePrefix": "",                    // e.g. "From" for off-plan
-  "bedrooms": 4, "bathrooms": 5,        // use null for land
-  "size": 300,                          // m², or null
-  "landSize": "1 plot (approx. 100 × 100 ft)",
-  "paymentPlan": "",
-  "description": "Paragraph one.\n\nParagraph two.",
-  "amenities": ["BQ", "Borehole"],
-  "images": ["/images/properties/ph-1013/1.jpg", "/images/properties/ph-1013/2.jpg"],
-  "video": "https://youtu.be/XXXXXXXXXXX",   // YouTube link or .mp4 path, or ""
-  "featured": true,                     // show on the home page
-  "investment": false,                  // show on the Investment page
-  "dateAdded": "2026-11-01",
-  "sample": false
-}
-```
-
-The build checks the data and stops with a clear message if something required is missing (e.g. bedrooms on a house). Bedrooms/bathrooms are optional for land and commercial (FR-02).
-
-**Adding real photos:** put them in `src/static/images/properties/<ref>/` (JPG or WebP, ~1600px wide, 3:2 ratio, under ~300 KB each) and list them in `images`. Listings without photos show a branded illustration labelled "Illustration — real photos to be added". Never use unrelated internet photos for real listings (SRS §27).
-
-**New cities:** just use a different `city`/`state` in `location` — the location filter groups areas by city automatically.
-
-## 6. Before going live — checklist
-
-These come from SRS §38 and the content rules in the SRS:
-
-- [ ] Replace the 12 **sample listings** with real properties, photos and prices; then set `"demoMode": false` in `site.json` (removes the preview notice)
-- [ ] Confirm **08076873445** is the official WhatsApp number
-- [ ] Set the live domain in `siteUrl`
-- [ ] Add office address and opening hours to `site.json` (the Contact page shows them automatically); add a map once the address is confirmed
-- [ ] Have Pablo Homes **approve the FAQ answers** and **payment-plan wording** (company policy must be confirmed — SRS §16)
-- [ ] Approve the About page wording; add company story, mission and vision when supplied
-- [ ] Replace the temporary **PABLO HOMES** wordmark when a logo is approved; adjust colours in `styles.css` `:root` if brand colours are chosen
-- [ ] Complete the Privacy notice with company-specific details
-- [ ] Add `gaMeasurementId` (GA4) in `site.json` for analytics
-- [ ] Set `ADMIN_TOKEN` and email notifications in Netlify
-- [ ] Submit `https://<domain>/sitemap.xml` to Google Search Console
-
-## 7. Notes for the future admin dashboard (SRS §19, §40)
-
-- Listings already live in one structured data file and are published as `/properties.json`, so a CMS (Decap, Sanity, Supabase…) can replace the JSON file without touching page templates.
-- Enquiries are stored as structured records (type, name, contacts, property, preferred date/time, message, page source, timestamp, reference) — the `/admin/` page is the first screen of the future dashboard.
-- No customer accounts or online payments, by design (SRS §20–21).
+See `IMAGE-SOURCES.md` for the photo log.

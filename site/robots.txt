@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://pablo-homes-benin.netlify.app/sitemap.xml

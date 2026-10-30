@@ -100,7 +100,16 @@ Open `src/data/properties.json` and copy an existing entry:
 
 The build checks the data and stops with a clear message if something required is missing (e.g. bedrooms on a house). Bedrooms/bathrooms are optional for land and commercial (FR-02).
 
-**Adding real photos:** put them in `src/static/images/properties/<ref>/` (JPG or WebP, ~1600px wide, 3:2 ratio, under ~300 KB each) and list them in `images`. Listings without photos show a branded illustration labelled "Illustration — real photos to be added". Never use unrelated internet photos for real listings (SRS §27).
+**Adding real photos:** put them in `src/static/images/properties/<ref>/` (JPG or WebP, ~1600px wide, 3:2 ratio, under ~300 KB each) and list them in `images`. Genuine photos always take priority. While a listing has no real photos, it uses the stock photos named in `stockImages` (or its category's defaults), and the gallery is labelled "Sample stock photos — not this property". Stock photos must never be published as though they are the actual property (SRS §27) — remove `stockImages` and set `"sample": false` once real photos are in.
+
+### Stock photography (SRS visual asset plan)
+
+General sections (hero, services, property-type tiles, investment, About, Contact, inspection, insights covers and the CTA banner) use real architectural, interior and land photography from Unsplash — no sketches, illustrations or placeholders.
+
+- `src/data/photos.json` is the **image source log**: every photo's Unsplash ID (`https://images.unsplash.com/photo-<id>`), alt text and licence (Unsplash License — free for commercial use, no attribution required), plus which photo is used in each section, category and insights topic.
+- Optimised WebP files are in `src/static/images/photos/<key>-<640|1280|1920>.webp` and are served with `srcset`, so phones download the small size. Listing grids and galleries lazy-load.
+- To swap a photo: add a new entry to `photos.json`, save `<key>-640.webp` and `<key>-1280.webp` (3:2, add `-1920` for heroes), then point a section/category at the new key. The build stops if a file is missing.
+- No stock photo shows a recognisable person presented as staff or a client, and no third-party logos are prominent.
 
 **New cities:** just use a different `city`/`state` in `location` — the location filter groups areas by city automatically.
 
@@ -108,7 +117,8 @@ The build checks the data and stops with a clear message if something required i
 
 These come from SRS §38 and the content rules in the SRS:
 
-- [ ] Replace the 12 **sample listings** with real properties, photos and prices; then set `"demoMode": false` in `site.json` (removes the preview notice)
+- [ ] Replace the 12 **sample listings** with real properties, genuine photos and prices (remove their `stockImages`); then set `"demoMode": false` in `site.json` (removes the preview notice)
+- [ ] Optionally replace general stock photos with Pablo Homes' own photography (office, team, Benin City) when available
 - [ ] Confirm **08076873445** is the official WhatsApp number
 - [ ] Set the live domain in `siteUrl`
 - [ ] Add office address and opening hours to `site.json` (the Contact page shows them automatically); add a map once the address is confirmed

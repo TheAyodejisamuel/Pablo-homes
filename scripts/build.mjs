@@ -14,7 +14,7 @@ import {
   locationOptions, typeOptions, bedOptions, waButton, callButton,
 } from './lib/components.mjs';
 import { layout } from './lib/layout.mjs';
-import { propertyArtSet, sectionArt, heroArt } from './lib/art.mjs';
+import { createPhotos, SIZES } from './lib/photos.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = path.join(ROOT, 'src');
@@ -65,27 +65,11 @@ const page = (p) => {
   if (!p.noindex && p.path.endsWith('/')) sitemap.push({ loc: p.path, lastmod: p.lastmod });
 };
 
-// Generated illustrations
-const artDir = path.join(DIST, 'images/art');
-fs.mkdirSync(artDir, { recursive: true });
-fs.writeFileSync(path.join(DIST, 'images/hero.svg'), heroArt());
-for (const n of ['about', 'sales', 'rentals', 'land', 'investment', 'abroad', 'contact']) fs.writeFileSync(path.join(artDir, `section-${n}.svg`), sectionArt(n));
+// Stock photography (SRS visual asset plan) — see src/data/photos.json
+const { section: sectionPhoto, img, propertyImages, postPhoto } = createPhotos(read('photos.json'), path.join(SRC, 'static'));
 
 const properties = rawProps
-  .map((p) => {
-    const url = propertyUrl(p);
-    let imageList;
-    if (p.images?.length) {
-      imageList = p.images.map((src, i) => ({ src, alt: `${p.title}, ${p.location.area} — photo ${i + 1}`, real: true }));
-    } else {
-      imageList = propertyArtSet(p).map((svg, i) => {
-        const name = `${p.id.toLowerCase()}-${i + 1}.svg`;
-        fs.writeFileSync(path.join(artDir, name), svg);
-        return { src: `/images/art/${name}`, alt: `Illustration of ${p.title} (${i + 1}) — real photos to follow`, real: false };
-      });
-    }
-    return { ...p, url, imageList };
-  })
+  .map((p) => ({ ...p, url: propertyUrl(p), imageList: propertyImages(p) }))
   .sort((a, b) => b.dateAdded.localeCompare(a.dateAdded));
 
 const openListings = properties.filter((p) => !isClosed(p));
@@ -102,9 +86,9 @@ const sectionHead = (eyebrow, title, intro = '', action = '') => `
   ${action}
 </div>`;
 
-const pageHero = ({ eyebrow, title, lead, image, imageAlt = '' }) => `
+const pageHero = ({ eyebrow, title, lead, image }) => `
 <section class="page-hero${image ? ' page-hero--image' : ''}">
-  ${image ? `<img class="page-hero-bg" src="${image}" alt="${esc(imageAlt)}" width="1200" height="800">` : ''}
+  ${image ? img(sectionPhoto(image), { sizes: SIZES.full, eager: true, cls: 'page-hero-bg' }) : ''}
   <div class="container page-hero-inner">
     ${eyebrow ? `<p class="eyebrow">${eyebrow}</p>` : ''}
     <h1>${title}</h1>
@@ -116,6 +100,7 @@ const grid = (list, cls = '') => `<div class="card-grid ${cls}">${list.map((p) =
 
 const ctaBand = (title = 'Seen something you like?', text = 'Book an inspection or chat with Pablo Homes on WhatsApp — we will get back to you quickly.') => `
 <section class="cta-band">
+  ${img(sectionPhoto('cta'), { sizes: SIZES.full, cls: 'cta-band-bg' })}
   <div class="container cta-band-inner">
     <div><h2>${title}</h2><p>${text}</p></div>
     <div class="cta-band-actions">
@@ -126,7 +111,7 @@ const ctaBand = (title = 'Seen something you like?', text = 'Book an inspection 
 </section>`;
 
 const demoNotice = site.demoMode
-  ? `<div class="demo-notice" role="note"><div class="container">${icon('eye')}<span><strong>Preview site:</strong> listings shown are samples with illustrations. Real properties, photos and prices will replace them before launch.</span></div></div>`
+  ? `<div class="demo-notice" role="note"><div class="container">${icon('eye')}<span><strong>Preview site:</strong> listings shown are samples illustrated with stock photography. Real properties, photos and prices will replace them before launch.</span></div></div>`
   : '';
 
 const orgLd = {
@@ -179,6 +164,16 @@ const TYPE_BLURB = {
   shortlet: 'Furnished short stays',
   offplan: 'Homes before completion',
 };
+// Category banner photos (concept imagery only — never presented as a specific listing)
+const TYPE_PHOTO = {
+  land: 'land-field',
+  apartment: 'apartment-block-balconies',
+  duplex: 'duplex-timber',
+  terrace: 'terrace-brick',
+  commercial: 'commercial-glass',
+  shortlet: 'bedroom-luxury',
+  offplan: 'development-pool',
+};
 
 page({
   path: '/',
@@ -189,7 +184,7 @@ page({
   jsonLd: [orgLd, { '@context': 'https://schema.org', '@type': 'WebSite', name: site.name, url: ORIGIN + '/', potentialAction: { '@type': 'SearchAction', target: `${ORIGIN}/properties/?q={search_term_string}`, 'query-input': 'required name=search_term_string' } }],
   body: `
 <section class="hero">
-  <img class="hero-bg" src="/images/hero.svg" alt="" width="1600" height="1000" fetchpriority="high">
+  ${img(sectionPhoto('hero'), { sizes: SIZES.full, eager: true, cls: 'hero-bg' })}
   <div class="hero-shade"></div>
   <div class="container hero-inner">
     <p class="eyebrow eyebrow--light">${esc(site.city)} · ${esc(site.state)}</p>
@@ -221,7 +216,7 @@ ${demoNotice}
   <div class="container">
     ${sectionHead('Browse', 'Browse by property type')}
     <ul class="type-grid">
-      ${Object.entries(CATEGORIES).map(([k, v]) => `<li><a class="type-tile" href="/properties/?type=${k}">${icon(k)}<span class="type-name">${v.plural}</span><span class="type-blurb">${TYPE_BLURB[k]}</span><span class="type-count">${typeCounts[k]} ${typeCounts[k] === 1 ? 'listing' : 'listings'}</span></a></li>`).join('')}
+      ${Object.entries(CATEGORIES).map(([k, v]) => `<li><a class="type-tile" href="/properties/?type=${k}">${img(TYPE_PHOTO[k], { sizes: SIZES.tile, cls: 'type-img' })}<span class="type-text"><span class="type-name">${v.plural}</span><span class="type-blurb">${TYPE_BLURB[k]}</span><span class="type-count">${typeCounts[k]} ${typeCounts[k] === 1 ? 'listing' : 'listings'}</span></span></a></li>`).join('')}
     </ul>
   </div>
 </section>
@@ -234,7 +229,7 @@ ${demoNotice}
         ['sales', 'Property Sales', 'Homes, terraces and commercial buildings for sale in Benin City, with clear information on every listing.', '/properties/?purpose=buy', 'Browse properties for sale'],
         ['rentals', 'Property Rentals', 'Apartments, homes, commercial spaces and shortlets for rent — compare options and book an inspection.', '/properties/?purpose=rent', 'Browse properties for rent'],
         ['land', 'Land Sales', 'Residential and commercial plots, with documentation details shared on enquiry.', '/properties/?type=land', 'View available land'],
-      ].map(([art, t, d, href, cta]) => `<article class="service-card"><a href="${href}" class="service-media" tabindex="-1" aria-hidden="true"><img src="/images/art/section-${art}.svg" alt="" width="1200" height="800" loading="lazy"></a><h3>${t}</h3><p>${d}</p><a class="link-arrow" href="${href}">${cta} ${icon('arrow')}</a></article>`).join('')}
+      ].map(([art, t, d, href, cta]) => `<article class="service-card"><a href="${href}" class="service-media" tabindex="-1" aria-hidden="true">${img(sectionPhoto(`service-${art}`), { sizes: SIZES.card })}</a><h3>${t}</h3><p>${d}</p><a class="link-arrow" href="${href}">${cta} ${icon('arrow')}</a></article>`).join('')}
     </div>
   </div>
 </section>
@@ -263,7 +258,7 @@ ${demoNotice}
 
 <section class="section section--tint">
   <div class="container split">
-    <div class="split-media"><img src="/images/art/section-investment.svg" alt="Architectural line drawing of a planned development" width="1200" height="800" loading="lazy"></div>
+    <div class="split-media">${img(sectionPhoto('investment-preview'))}</div>
     <div class="split-body">
       <p class="eyebrow">Investment</p>
       <h2 class="section-title">Property opportunities in ${esc(site.city)}</h2>
@@ -288,12 +283,8 @@ ${demoNotice}
 ${ctaBand()}`,
 });
 
-function postArt(post) {
-  const map = { Land: 'land', Renting: 'rentals', Inspections: 'about', 'Nigerians Abroad': 'abroad', Investment: 'investment', Documentation: 'sales' };
-  return `/images/art/section-${map[post.category] || 'sales'}.svg`;
-}
 function postCard(post) {
-  return `<article class="post-card"><a class="post-media" href="/insights/${post.slug}/" tabindex="-1" aria-hidden="true"><img src="${postArt(post)}" alt="" width="1200" height="800" loading="lazy"></a><div class="post-body"><p class="post-meta"><span>${esc(post.category)}</span> · <time datetime="${post.date}">${dateFmt(post.date)}</time></p><h3><a href="/insights/${post.slug}/">${esc(post.title)}</a></h3><p>${esc(post.excerpt)}</p></div></article>`;
+  return `<article class="post-card"><a class="post-media" href="/insights/${post.slug}/" tabindex="-1" aria-hidden="true">${img(postPhoto(post), { sizes: SIZES.card })}</a><div class="post-body"><p class="post-meta"><span>${esc(post.category)}</span> · <time datetime="${post.date}">${dateFmt(post.date)}</time></p><h3><a href="/insights/${post.slug}/">${esc(post.title)}</a></h3><p>${esc(post.excerpt)}</p></div></article>`;
 }
 
 // =====================================================================
@@ -424,19 +415,19 @@ ${breadcrumbs([['Home', '/'], ['Properties', '/properties/'], [p.title, p.url]])
   <div class="container">
     <section class="gallery" aria-label="Image gallery" data-gallery>
       <div class="gallery-main">
-        ${p.imageList.map((img, i) => `<figure class="gallery-slide${i === 0 ? ' is-active' : ''}" data-slide${i ? ' hidden' : ''}><img src="${img.src}" alt="${esc(img.alt)}" width="1200" height="800" ${i ? 'loading="lazy"' : 'fetchpriority="high"'}></figure>`).join('')}
+        ${p.imageList.map((im, i) => `<figure class="gallery-slide${i === 0 ? ' is-active' : ''}" data-slide${i ? ' hidden' : ''}>${im.real ? `<img src="${im.src}" alt="${esc(im.alt)}" width="1200" height="800" ${i ? 'loading="lazy"' : 'fetchpriority="high"'}>` : img(im, { sizes: SIZES.gallery, eager: i === 0 })}</figure>`).join('')}
         <button class="gallery-nav gallery-prev" type="button" aria-label="Previous image" data-gallery-prev>${icon('left')}</button>
         <button class="gallery-nav gallery-next" type="button" aria-label="Next image" data-gallery-next>${icon('arrow')}</button>
         <p class="gallery-count"><span data-gallery-index>1</span> / ${p.imageList.length}</p>
-        ${p.imageList[0].real ? '' : '<p class="gallery-note">Illustration — real photos to be added</p>'}
+        ${p.imageList[0].real ? '' : '<p class="gallery-note">Sample stock photos — not this property</p>'}
       </div>
       <div class="gallery-thumbs" role="tablist" aria-label="Choose image">
-        ${p.imageList.map((img, i) => `<button type="button" role="tab" aria-selected="${i === 0}" aria-label="Image ${i + 1}" data-thumb="${i}"><img src="${img.src}" alt="" width="1200" height="800" loading="lazy"></button>`).join('')}
+        ${p.imageList.map((im, i) => `<button type="button" role="tab" aria-selected="${i === 0}" aria-label="Image ${i + 1}" data-thumb="${i}"><img src="${im.thumb}" alt="" width="640" height="427" loading="lazy" decoding="async"></button>`).join('')}
       </div>
     </section>
 
     ${closed ? `<div class="closed-banner">${icon('key')}<p>This property has been <strong>${STATUSES[p.status].label.toLowerCase()}</strong>. See similar properties below, or ask Pablo Homes about comparable listings.</p></div>` : ''}
-    ${p.sample ? `<div class="sample-banner" role="note">${icon('eye')}<p>This is a <strong>sample listing</strong> created to demonstrate the website. Details and images are illustrative.</p></div>` : ''}
+    ${p.sample ? `<div class="sample-banner" role="note">${icon('eye')}<p>This is a <strong>sample listing</strong> created to demonstrate the website. Details are illustrative and the photos are stock images, not of this property.</p></div>` : ''}
 
     <div class="property-layout">
       <div class="property-main">
@@ -533,7 +524,7 @@ page({
   title: 'Book a Property Inspection',
   description: `Request an inspection of any Pablo Homes property in ${site.city}. Choose a preferred date and time and we will confirm your appointment.`,
   body: `
-${pageHero({ eyebrow: 'Inspections', title: 'Book an inspection', lead: 'Choose a property and a preferred date and time. Your booking is a request until Pablo Homes confirms the appointment with you.' })}
+${pageHero({ eyebrow: 'Inspections', title: 'Book an inspection', lead: 'Choose a property and a preferred date and time. Your booking is a request until Pablo Homes confirms the appointment with you.', image: 'inspection' })}
 <section class="section section--flush">
   <div class="container narrow-grid">
     <div class="panel">${inspectionForm(properties, null, { idPrefix: 'bk', site })}</div>
@@ -560,7 +551,7 @@ page({
   description: `Pablo Homes is a real estate business in ${site.city}, ${site.state}, offering property sales, rentals and land sales.`,
   jsonLd: [orgLd],
   body: `
-${pageHero({ eyebrow: 'About us', title: `Real estate in ${esc(site.city)}, made clearer`, lead: `Pablo Homes helps people buy, rent and invest in property across ${esc(site.city)}, ${esc(site.state)}.`, image: '/images/art/section-about.svg' })}
+${pageHero({ eyebrow: 'About us', title: `Real estate in ${esc(site.city)}, made clearer`, lead: `Pablo Homes helps people buy, rent and invest in property across ${esc(site.city)}, ${esc(site.state)}.`, image: 'about' })}
 <section class="section">
   <div class="container split split--text">
     <div>
@@ -622,11 +613,11 @@ page({
   description: `Pablo Homes services in ${site.city}: property sales, property rentals and land sales.`,
   jsonLd: [{ '@context': 'https://schema.org', '@type': 'ItemList', itemListElement: services.map((s, i) => ({ '@type': 'ListItem', position: i + 1, item: { '@type': 'Service', name: s.title, provider: { '@id': `${ORIGIN}/#organization` }, areaServed: site.city, description: s.text } })) }],
   body: `
-${pageHero({ eyebrow: 'Services', title: 'Sales, rentals and land', lead: `Three core services, one simple process — focused on ${esc(site.city)}.` })}
+${pageHero({ eyebrow: 'Services', title: 'Sales, rentals and land', lead: `Three core services, one simple process — focused on ${esc(site.city)}.`, image: 'services' })}
 <section class="section section--flush">
   <div class="container services-list">
     ${services.map((s, i) => `<article class="service-row${i % 2 ? ' service-row--flip' : ''}" id="${s.id}">
-      <div class="service-row-media"><img src="/images/art/section-${s.art}.svg" alt="" width="1200" height="800" loading="lazy"></div>
+      <div class="service-row-media">${img(sectionPhoto(`service-${s.art}`))}</div>
       <div class="service-row-body">
         <p class="eyebrow">0${i + 1}</p>
         <h2 class="section-title">${s.title}</h2>
@@ -661,7 +652,7 @@ page({
   description: `Land, off-plan and income-generating property opportunities in ${site.city} for investors and Nigerians abroad. Enquire with Pablo Homes.`,
   waText: investorWa,
   body: `
-${pageHero({ eyebrow: 'Investment', title: `Property opportunities in ${esc(site.city)}`, lead: 'For investors at home and Nigerians abroad — land, off-plan developments and income-generating property, with the information you need to decide.', image: '/images/art/section-investment.svg' })}
+${pageHero({ eyebrow: 'Investment', title: `Property opportunities in ${esc(site.city)}`, lead: 'For investors at home and Nigerians abroad — land, off-plan developments and income-generating property, with the information you need to decide.', image: 'investment' })}
 <section class="section">
   <div class="container split split--text">
     <div><p class="eyebrow">Overview</p><h2 class="section-title">Invest with clear information</h2></div>
@@ -686,7 +677,7 @@ ${invest.length ? `<section class="section section--flush"><div class="container
 </section>
 <section class="section">
   <div class="container split">
-    <div class="split-media"><img src="/images/art/section-abroad.svg" alt="" width="1200" height="800" loading="lazy"></div>
+    <div class="split-media">${img(sectionPhoto('abroad'))}</div>
     <div class="split-body">
       <p class="eyebrow">How to enquire</p>
       <h2 class="section-title">From anywhere in the world</h2>
@@ -743,7 +734,7 @@ ${breadcrumbs([['Home', '/'], ['Insights', '/insights/'], [post.title, `/insight
     <h1>${esc(post.title)}</h1>
     <p class="lead">${esc(post.excerpt)}</p>
   </header>
-  <div class="container"><div class="article-media"><img src="${postArt(post)}" alt="" width="1200" height="800"></div></div>
+  <div class="container"><div class="article-media">${img(postPhoto(post), { sizes: SIZES.article, eager: true })}</div></div>
   <div class="container article-body prose">${md(post.body)}</div>
   <div class="container article-cta">
     <div class="panel panel--dark">
@@ -787,7 +778,7 @@ page({
   description: `Contact Pablo Homes in ${site.city}: call ${site.phoneDisplay}, chat on WhatsApp, email or send a message.`,
   jsonLd: [orgLd],
   body: `
-${pageHero({ eyebrow: 'Contact', title: 'Talk to Pablo Homes', lead: 'Call, chat on WhatsApp, email or send a message — we will get back to you as soon as possible.' })}
+${pageHero({ eyebrow: 'Contact', title: 'Talk to Pablo Homes', lead: 'Call, chat on WhatsApp, email or send a message — we will get back to you as soon as possible.', image: 'contact' })}
 <section class="section section--flush">
   <div class="container">
     <ul class="contact-cards">

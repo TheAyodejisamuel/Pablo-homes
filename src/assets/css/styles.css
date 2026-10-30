@@ -261,14 +261,17 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* ---------- Type tiles ---------- */
 .type-grid { list-style: none; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 12px; }
-.type-tile { height: 100%; display: flex; flex-direction: column; gap: 6px; padding: 22px 18px; background: var(--white); border: 1px solid var(--line); border-radius: var(--radius-lg); text-decoration: none; transition: border-color .25s, transform .25s var(--ease), box-shadow .25s; }
-.type-tile:hover { border-color: var(--ink); transform: translateY(-2px); box-shadow: var(--shadow); color: var(--ink); }
-.type-tile .icon { width: 28px; height: 28px; color: var(--bronze); margin-bottom: 10px; }
+.type-tile { position: relative; display: block; aspect-ratio: 3 / 4; border-radius: var(--radius-lg); overflow: hidden; background: var(--ink-2); color: var(--white); text-decoration: none; isolation: isolate; }
+.type-tile::after { content: ""; position: absolute; inset: 0; z-index: 1; background: linear-gradient(0deg, rgba(14, 13, 12, .9) 0%, rgba(14, 13, 12, .55) 42%, rgba(14, 13, 12, 0) 72%); transition: background-color .3s; }
+.type-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform .8s var(--ease); }
+.type-tile:hover .type-img, .type-tile:focus-visible .type-img { transform: scale(1.05); }
+.type-tile:hover { color: var(--white); }
+.type-text { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; display: flex; flex-direction: column; gap: 4px; padding: 16px 16px 18px; }
 .type-name { font-weight: 700; font-size: 1.02rem; }
-.type-blurb { font-size: .82rem; color: var(--muted); line-height: 1.4; }
-.type-count { margin-top: auto; padding-top: 10px; font-size: .75rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--bronze-ink); }
+.type-blurb { font-size: .8rem; color: rgba(255, 255, 255, .8); line-height: 1.35; }
+.type-count { padding-top: 6px; font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--bronze-light); }
 @media (max-width: 1180px) { .type-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-@media (max-width: 720px) { .type-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .type-blurb { display: none; } }
+@media (max-width: 720px) { .type-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .type-blurb { display: none; } .type-tile { aspect-ratio: 4 / 3; } .type-grid li:last-child { grid-column: 1 / -1; } .type-grid li:last-child .type-tile { aspect-ratio: 16 / 7; } }
 
 /* ---------- Services ---------- */
 .service-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(20px, 3vw, 40px); }
@@ -331,7 +334,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* ---------- CTA band ---------- */
 .cta-band { background: var(--ink); color: var(--white); padding: clamp(48px, 7vw, 88px) 0; position: relative; overflow: hidden; }
-.cta-band::after { content: ""; position: absolute; right: -10%; top: -60%; width: 60%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle, rgba(210, 176, 131, .18), transparent 65%); pointer-events: none; }
+.cta-band-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 60%; }
+.cta-band::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(14, 13, 12, .88) 0%, rgba(14, 13, 12, .62) 55%, rgba(14, 13, 12, .38) 100%); pointer-events: none; }
 .cta-band-inner { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 32px; flex-wrap: wrap; }
 .cta-band h2 { margin-bottom: .3em; }
 .cta-band p { color: rgba(255, 255, 255, .72); margin: 0; max-width: 36rem; }
